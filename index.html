@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Vitality BP Record</title>
+<meta name="theme-color" content="#13223F">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;700&family=Atkinson+Hyperlegible+Next:wght@400;600;800&display=swap">
+<style>
+:root{
+  --bg:#EEF1F6; --surface:#FFFFFF; --sunk:#E4E9F1; --ink:#13223F; --muted:#56637D; --line:#D3DAE6;
+  --navy:#13223F; --on-navy:#F3F5F9; --accent:#1D5FC4; --accent-ink:#FFFFFF; --gold:#8F6206; --gold-bg:#FFF0C9;
+  --good:#1B7A4C; --good-bg:#DDF2E6; --warn:#985806; --warn-bg:#FDEBD2; --bad:#B3261E; --bad-bg:#FADFDB;
+  --sbp:#13223F; --dbp:#1D5FC4;
+  --sans:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"Atkinson Hyperlegible Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0B1220; --surface:#142035; --sunk:#0F1A2D; --ink:#E6ECF7; --muted:#9DAAC4; --line:#27365A;
+    --navy:#0F1A2D; --on-navy:#E6ECF7; --accent:#6EA1F3; --accent-ink:#0B1220; --gold:#F2B94A; --gold-bg:#3A2D10;
+    --good:#62CE94; --good-bg:#11301F; --warn:#F2AC55; --warn-bg:#3A2710; --bad:#FF8C82; --bad-bg:#3D1715;
+    --sbp:#E6ECF7; --dbp:#6EA1F3;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0B1220; --surface:#142035; --sunk:#0F1A2D; --ink:#E6ECF7; --muted:#9DAAC4; --line:#27365A;
+  --navy:#0F1A2D; --on-navy:#E6ECF7; --accent:#6EA1F3; --accent-ink:#0B1220; --gold:#F2B94A; --gold-bg:#3A2D10;
+  --good:#62CE94; --good-bg:#11301F; --warn:#F2AC55; --warn-bg:#3A2710; --bad:#FF8C82; --bad-bg:#3D1715;
+  --sbp:#E6ECF7; --dbp:#6EA1F3;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:17px;line-height:1.4;-webkit-text-size-adjust:100%;overscroll-behavior-y:contain}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.sm{font-size:.88rem}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* app bar */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--navy);color:var(--on-navy)}
+.bar-in{max-width:640px;margin:0 auto;height:60px;padding-inline:8px 12px;display:flex;align-items:center;gap:6px}
+.icon-btn{width:48px;height:48px;border:0;background:transparent;color:inherit;border-radius:50%;display:grid;place-items:center;flex:none}
+.icon-btn svg{width:26px;height:26px}
+.bar img{width:38px;height:38px;border-radius:50%;background:#fff;margin-left:6px;flex:none}
+.bar-title{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15;padding-left:4px}
+.bar-title b{font-size:1.08rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-title span{font-size:.75rem;opacity:.78;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sync{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:999px;padding:7px 11px;font-size:.78rem;font-weight:600;background:color-mix(in srgb,var(--on-navy) 14%,transparent);color:var(--on-navy);flex:none}
+.sync i{width:9px;height:9px;border-radius:50%;background:#9DAAC4}
+.sync.ok i{background:#5BD08F}.sync.wait i{background:#F2B94A}.sync.err i{background:#FF8C82}
+
+main{max-width:640px;margin:0 auto;padding-inline:14px;padding-block:14px 120px;display:flex;flex-direction:column;gap:14px}
+main.wiz{padding-bottom:130px}
+
+/* bottom nav */
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.nav-in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr)}
+.nav button{height:64px;border:0;background:none;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:.8rem;font-weight:600;position:relative}
+.nav button svg{width:24px;height:24px}
+.nav button[aria-current="page"]{color:var(--accent)}
+.nav button[aria-current="page"]::before{content:"";position:absolute;top:0;left:28%;right:28%;height:3px;border-radius:0 0 3px 3px;background:var(--accent)}
+.badge{position:absolute;top:8px;left:calc(50% + 6px);background:var(--bad);color:#fff;border-radius:999px;font-size:.68rem;min-width:18px;height:18px;padding:0 5px;display:grid;place-items:center}
+
+/* action footer (wizard) */
+.foot{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px))}
+.foot-in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:1fr 2fr;gap:10px}
+.foot-in.one{grid-template-columns:1fr}
+
+/* blocks */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.card-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.card-h h2,.card>h2{font-size:1.05rem;font-weight:800}
+.eyebrow{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.banner{background:var(--gold-bg);border-radius:12px;padding:12px 14px;font-size:.92rem;display:flex;flex-direction:column;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font-size:.8rem;font-weight:600;white-space:nowrap}
+.chip::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.c-good{background:var(--good-bg);color:var(--good)}.c-warn{background:var(--warn-bg);color:var(--warn)}.c-bad{background:var(--bad-bg);color:var(--bad)}.c-gold{background:var(--gold-bg);color:var(--gold)}.c-plain{background:var(--sunk);color:var(--muted)}
+
+.btn{min-height:52px;border:0;border-radius:12px;padding:12px 18px;font-weight:700;font-size:1.02rem;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;text-align:center}
+.btn.sec{background:var(--sunk);color:var(--ink)}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--line)}
+.btn.danger{background:var(--bad-bg);color:var(--bad)}
+.btn.big{min-height:60px;font-size:1.12rem}
+.btn:disabled{opacity:.45}
+.btn svg{width:22px;height:22px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.link{border:0;background:none;color:var(--accent);font-weight:700;padding:8px 0;min-height:44px}
+
+/* search + list */
+.search{position:relative}
+.search input{width:100%;height:54px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);padding:0 16px 0 46px;font-size:1.05rem}
+.search svg{position:absolute;left:14px;top:15px;width:22px;height:22px;color:var(--muted)}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-inline:-14px;padding-inline:14px}
+.chips::-webkit-scrollbar{display:none}
+.fchip{flex:none;height:40px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);padding:0 14px;font-weight:600;font-size:.92rem;color:var(--ink)}
+.fchip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.plist{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.pitem{width:100%;border:0;background:none;text-align:left;display:grid;grid-template-columns:1fr auto;gap:3px 10px;padding:14px 16px;border-top:1px solid var(--line);min-height:72px;align-items:center}
+.pitem:first-child{border-top:0}
+.pitem .n{font-weight:800;font-size:1.05rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pitem .s{grid-column:1/-1;font-size:.86rem;color:var(--muted)}
+.fab{position:fixed;right:max(18px,calc(50% - 302px));bottom:calc(82px + env(safe-area-inset-bottom,0px));z-index:9;height:58px;border-radius:18px;border:0;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:1.02rem;display:flex;align-items:center;gap:8px;padding:0 20px;box-shadow:0 6px 18px rgba(19,34,63,.28)}
+.fab svg{width:24px;height:24px}
+.empty{text-align:center;padding:28px 12px;color:var(--muted)}
+
+/* patient */
+.hero{background:var(--navy);color:var(--on-navy);border-radius:16px;padding:18px 16px 16px;display:flex;flex-direction:column;gap:12px}
+.hero .who{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.hero h1{font-size:1.35rem;font-weight:800}
+.hero .meta{font-size:.86rem;opacity:.82;display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px}
+.hero .bp{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.hero .bpv{font-family:var(--mono);font-weight:700;font-size:3.1rem;line-height:1;letter-spacing:-.02em}
+.hero .bpv small{font-size:.85rem;font-weight:400;opacity:.75;margin-left:4px;letter-spacing:0}
+.hero .chip.c-good{background:#1E5C3F;color:#CFF5DF}.hero .chip.c-warn{background:#6B4410;color:#FFE3B8}.hero .chip.c-bad{background:#7A1E18;color:#FFD9D4}.hero .chip.c-plain{background:rgba(255,255,255,.14);color:var(--on-navy)}
+.hero .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.hero .facts div{background:rgba(255,255,255,.09);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:1px;min-width:0}
+.hero .facts dt{font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.hero .facts dd{margin:0;font-weight:700;font-size:.98rem}
+.hero .facts .late{color:#FFB4AB}
+.contact{display:flex;gap:8px}
+.contact a{flex:1;min-height:46px;border-radius:12px;background:rgba(255,255,255,.12);color:var(--on-navy);text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:.95rem}
+.contact svg{width:20px;height:20px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--sunk);border-radius:12px;padding:4px;gap:4px;position:sticky;top:calc(60px + env(safe-area-inset-top,0px));z-index:5}
+.seg button{height:44px;border:0;border-radius:9px;background:transparent;font-weight:700;color:var(--muted)}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.ladder{display:flex;flex-direction:column;gap:6px}
+.rung{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;padding:9px 12px;border-radius:10px;border:1.5px solid var(--line);font-size:.92rem}
+.rung b{font-family:var(--mono);font-size:1.15rem}
+.rung.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.rung.past{opacity:.55}
+.med{border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.med.stopped{border-style:dashed}
+.med-h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.med-n{font-weight:800;font-size:1.05rem}
+.med-d{font-family:var(--mono);font-weight:700}
+.vrow{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px 0;border-top:1px solid var(--line)}
+.vrow:first-child{border-top:0;padding-top:0}
+.vrow .s{grid-column:1/-1;font-size:.86rem;color:var(--muted)}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;font-size:.8rem;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:16px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+/* forms */
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:.92rem}
+.f input,.f select,.f textarea{min-height:54px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);padding:12px 14px;font-weight:400;font-size:1.05rem;width:100%;min-width:0}
+.f textarea{min-height:88px}
+.opts{display:grid;gap:8px}
+.opts.c2{grid-template-columns:1fr 1fr}.opts.c4{grid-template-columns:repeat(4,1fr)}
+.opt{min-height:52px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);padding:10px 12px;font-weight:700;text-align:left;display:flex;align-items:center;gap:10px}
+.opt.center{justify-content:center;text-align:center}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--surface));color:var(--ink);box-shadow:inset 0 0 0 1px var(--accent)}
+.opt .tick{width:24px;height:24px;border-radius:7px;border:2px solid var(--line);flex:none;display:grid;place-items:center}
+.opt[aria-pressed="true"] .tick{background:var(--accent);border-color:var(--accent)}
+.opt[aria-pressed="true"] .tick::after{content:"";width:10px;height:6px;border-left:3px solid var(--accent-ink);border-bottom:3px solid var(--accent-ink);transform:rotate(-45deg) translate(1px,-1px)}
+.opt small{display:block;font-weight:400;color:var(--muted);font-size:.84rem}
+
+/* wizard */
+.steps{display:flex;gap:6px}
+.steps i{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.steps i.on{background:var(--accent)}
+.q{font-size:1.3rem;font-weight:800}
+.bpgrid{display:grid;grid-template-columns:38px 1fr 20px 1fr;gap:10px 6px;align-items:center}
+.bpgrid .h{font-size:.74rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;text-align:center}
+.bpgrid .k{font-family:var(--mono);font-weight:700;color:var(--muted);font-size:1rem}
+.bpgrid .sl{text-align:center;font-size:1.8rem;color:var(--muted)}
+.bpin{width:100%;min-width:0;height:66px;border-radius:12px;border:2px solid var(--line);background:var(--surface);text-align:center;font-family:var(--mono);font-weight:700;font-size:2rem;padding:0}
+.bpin:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.avg{background:var(--navy);color:var(--on-navy);border-radius:14px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.avg b{font-family:var(--mono);font-size:2.2rem;line-height:1}
+.sug{border-radius:14px;padding:16px;border:2px solid;display:flex;flex-direction:column;gap:8px}
+.sug.good{background:var(--good-bg);border-color:var(--good)}.sug.warn{background:var(--warn-bg);border-color:var(--warn)}.sug.bad{background:var(--bad-bg);border-color:var(--bad)}.sug.plain{background:var(--sunk);border-color:var(--line)}
+.sug b{font-size:1.15rem}
+.sug ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+
+.sheet-bg{position:fixed;inset:0;background:rgba(10,16,30,.5);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:640px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px;max-height:88vh;overflow:auto}
+.sheet .grab{width:44px;height:5px;border-radius:3px;background:var(--line);align-self:center}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(86px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:999px;font-weight:700;font-size:.92rem;z-index:30;max-width:calc(100% - 32px);text-align:center}
+code.k{font-family:var(--mono);font-size:.8rem;word-break:break-all;background:var(--sunk);padding:2px 6px;border-radius:6px}
+@media (min-width:600px){.hero .bpv{font-size:3.6rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+
+<header class="bar"><div class="bar-in" id="bar"></div></header>
+<main id="main"></main>
+<div id="bottom"></div>
+<div id="sheet"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+"use strict";
+const LOGO="data:image/jpeg;base64,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";
+const KEY="vitality-bp-record-v2", OLDKEY="vitality-bp-record-v1";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const today=()=>iso(new Date());
+const addDays=(s,n)=>{const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+n);return iso(d)};
+const fmt=s=>{if(!s)return "—";const [y,m,d]=s.split("-");return (+d)+" "+MON[+m-1]+" "+y};
+const fmtS=s=>{if(!s)return "—";const [,m,d]=s.split("-");return (+d)+" "+MON[+m-1]};
+const days=(a,b)=>Math.round((new Date(b+"T12:00:00")-new Date(a+"T12:00:00"))/864e5);
+const I={
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  people:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.3-5.5 6.5-5.5s5.7 1.9 6.5 5.5"/><circle cx="17" cy="9" r="2.6"/><path d="M16.5 14.6c2.6.1 4.3 1.8 5 4.4"/></svg>',
+  due:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M12 13.5v3l2 1.2"/></svg>',
+  cloud:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8a4 4 0 0 1 0 8"/><path d="M12 12v8M9 15l3-3 3 3"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2"/></svg>',
+  chat:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/></svg>',
+  heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>'
+};
+
+/* ---------- protocol (matches Clinical Protocols v1.0) ---------- */
+const DRUGS={amlodipine:{n:"Amlodipine",d:["2.5 mg","5 mg","10 mg"]},losartan:{n:"Losartan",d:["25 mg","50 mg","100 mg"]},lisinopril:{n:"Lisinopril",d:["5 mg","10 mg","20 mg"]},hctz:{n:"HCTZ (hydrochlorothiazide)",d:["12.5 mg","25 mg"]},telmisartan:{n:"Telmisartan",d:["40 mg","80 mg"]},valsartan:{n:"Valsartan",d:["80 mg","160 mg"]},enalapril:{n:"Enalapril",d:["10 mg","20 mg"]},perindopril:{n:"Perindopril",d:["4 mg","8 mg"]},nifedipine_er:{n:"Nifedipine ER",d:["30 mg","60 mg"]},chlorthalidone:{n:"Chlorthalidone",d:["12.5 mg","25 mg"]},spironolactone:{n:"Spironolactone",d:["25 mg"]},atenolol:{n:"Atenolol",d:["25 mg","50 mg","100 mg"]},other:{n:"Other",d:[]}};
+const REASONS={ineffective:{t:"Did not control BP",c:"c-bad",p:1},sidefx:{t:"Side effect",c:"c-warn",p:1},allergy:{t:"Allergy: never again",c:"c-bad",p:1},pregnancy:{t:"Pregnancy",c:"c-warn",p:0},dose:{t:"Dose changed",c:"c-plain",p:0},replaced:{t:"Replaced at step change",c:"c-plain",p:0},stock:{t:"Out of stock",c:"c-plain",p:0},other:{t:"Other",c:"c-plain",p:0}};
+const medName=m=>m.drug==="other"?(m.name||"Other medicine"):(DRUGS[m.drug]||{n:m.drug}).n;
+const age=p=>p.birthYear?new Date().getFullYear()-(+p.birthYear):null;
+const highRisk=p=>{const c=p.cond||{};return !!(c.diabetes||c.kidney||c.stroke||c.mi||c.hf)};
+const target=p=>highRisk(p)?{s:130,d:80}:{s:140,d:90};
+const maxStep=p=>p.pathway==2?3:4;
+function stepMeds(p,s){
+  const ras=p.ras||"losartan",lo=ras==="losartan"?"50 mg":"10 mg",hi=ras==="losartan"?"100 mg":"20 mg",old=(age(p)||0)>=75;
+  if(p.pathway==2)return [[],[["amlodipine","5 mg"]],[["amlodipine","5 mg"],["hctz","12.5 mg"]],[["amlodipine","10 mg"],["hctz","25 mg"]]][s]||[];
+  return [[],[["amlodipine","5 mg"]],[["amlodipine","5 mg"],[ras,lo]],[["amlodipine","10 mg"],[ras,hi]],[["amlodipine","10 mg"],[ras,hi],["hctz",old?"12.5 mg":"25 mg"]]][s]||[];
+}
+const stepText=(p,s)=>s>maxStep(p)?"Physician review":!s?"No medicines yet":stepMeds(p,s).map(([d,x])=>DRUGS[d].n.replace(" (hydrochlorothiazide)","")+" "+x).join(" + ");
+function classify(p,s,d){if(s==null||d==null)return null;const t=target(p);if(s>=180||d>=110)return {k:"bad",t:"Very high"};if(s>=t.s||d>=t.d)return {k:"warn",t:"Above target"};return {k:"good",t:"At target"}}
+const chip=c=>c?`<span class="chip c-${c.k}">${c.t}</span>`:`<span class="chip c-plain">No visits</span>`;
+function suggest(p,s,d,missed,danger,confirmed){
+  const c=classify(p,s,d),step=p.step||0,max=maxStep(p);if(!c)return null;const very=c.k==="bad";
+  if(danger)return {cls:"bad",title:"Emergency: send to hospital now",lines:["Arrange transport and call ahead. Send a note with these readings and all medicines.","Do not give any drug to drop the BP fast.","Call the patient or family within 48 hours."],next:null,ret:3};
+  if(step===0){
+    if(s>=160||d>=100)return {cls:very?"bad":"warn",title:"Hypertension: start Step 2 today",lines:[stepText(p,2)].concat(very?["Very high: repeat after 15 minutes of rest. Return within 1 week."]:["Return in 4 weeks."]),next:2,ret:very?7:28};
+    if(s>=140||d>=90){if(confirmed)return {cls:"warn",title:"Confirmed: start Step 1",lines:[stepText(p,1),"Return in 4 weeks."],next:1,ret:28};return {cls:"warn",title:"Possible hypertension: check again",lines:["Come back within 2 weeks for a second check before starting medicines."],next:null,ret:14}}
+    if(highRisk(p)&&(s>=130||d>=80))return {cls:"plain",title:"High-normal in a high-risk patient",lines:["Physician decides whether to start medicines.","Recheck in 3 months."],next:null,ret:90};
+    return {cls:"good",title:"No hypertension today",lines:["Healthy-living advice. Recheck in "+((s>=130||d>=80)?"6 months.":"1 year.")],next:null,ret:(s>=130||d>=80)?182:365};
+  }
+  if(c.k==="good")return {cls:"good",title:"At target: keep the same medicines",lines:["These medicines will be marked as working.","Return in 3 months."],next:step,ret:90,controlled:true};
+  if(missed!=null&&missed>=2)return {cls:"warn",title:"Missing pills: fix that first",lines:["Ask why: cost, side effect, ran out, felt fine, herbs.","Keep the same step. Do not move up yet."],next:step,ret:very?7:28};
+  if(step>=max)return {cls:very?"bad":"warn",title:"Last step reached: physician review",lines:["Check the measurement and count leftover pills.","Physician decides next steps."],next:null,ret:very?7:28};
+  return {cls:very?"bad":"warn",title:`Above target: move up to Step ${step+1}`,lines:[stepText(p,step+1)].concat(very?["Very high: check danger signs, repeat after 15 minutes. Return within 1 week."]:["Return in 4 weeks."]),next:step+1,ret:very?7:28};
+}
+function applyStep(p,ns,date){
+  const want=stepMeds(p,ns),kept=new Set();
+  p.meds.filter(m=>!m.end).forEach(m=>{
+    const w=want.find(([dr])=>dr===m.drug);
+    if(w&&w[1]===m.dose){kept.add(m.drug);m.status="titrating";return}
+    m.end=date;
+    if(w){m.reason="dose";m.note=(m.note?m.note+" ":"")+`Changed to ${w[1]} at Step ${ns}.`}
+    else if(!m.reason){m.reason="replaced";m.note=(m.note?m.note+" ":"")+`Not part of Step ${ns}.`}
+  });
+  want.forEach(([dr,x])=>{if(!kept.has(dr))p.meds.push({id:uid(),drug:dr,dose:x,freq:"Once daily",start:date,end:null,status:"titrating",reason:null,note:""})});
+  p.step=ns;
+}
+
+/* ---------- storage ---------- */
+function load(){try{const r=localStorage.getItem(KEY);if(r)return JSON.parse(r);const o=localStorage.getItem(OLDKEY);if(o){const s=JSON.parse(o);return {patients:(s.patients||[]).filter(p=>!p.example),lastBackup:s.lastBackup}}}catch(e){}return null}
+let S=load()||{};
+S.patients=S.patients||examples();S.cfg=S.cfg||{};S.outbox=S.outbox||[];S.device=S.device||("dev-"+uid());
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+const P=id=>S.patients.find(p=>p.id===id);
+const lastV=p=>p.visits.length?p.visits[p.visits.length-1]:null;
+const active=p=>p.meds.filter(m=>!m.end);
+function touch(p){p.updatedAt=new Date().toISOString();if(!p.example&&!S.outbox.includes(p.id))S.outbox.push(p.id);save();sync()}
+
+function examples(){
+  const v=(date,r,step,missed,action,next,note)=>({id:uid(),date,r,sbp:Math.round((r[1][0]+r[2][0])/2),dbp:Math.round((r[1][1]+r[2][1])/2),step,missed,action,next,note:note||""});
+  const m=(drug,dose,start,end,status,reason,note)=>({id:uid(),drug,dose,freq:"Once daily",start,end:end||null,status:status||null,reason:reason||null,note:note||""});
+  const t=today(),ago=n=>addDays(t,-n);
+  return [
+   {id:"ex1",example:true,clinicId:"VHC-0001",name:"Korto Flomo",phone:"0770 000 001",kinPhone:"0880 000 002",birthYear:1970,sex:"F",pathway:1,ras:"losartan",cond:{},cuff:"Standard (22–32 cm)",arm:"Left",allergies:"",area:"Example area",enrolled:ago(107),step:4,updatedAt:"",
+    visits:[v(ago(107),[[178,106],[174,104],[174,104]],2,null,"Stopped atenolol (BP not controlled). Started Step 2.",ago(79),"Known high BP, buying atenolol from a pharmacy."),v(ago(79),[[162,100],[160,98],[160,98]],3,0,"Moved from Step 2 to Step 3.",ago(51)),v(ago(51),[[154,96],[152,94],[152,94]],3,0,"Dry cough on lisinopril. Switched to losartan 100 mg, same step.",ago(23),"Cough for 3 weeks."),v(ago(23),[[148,92],[146,92],[146,92]],4,0,"Moved from Step 3 to Step 4.",addDays(t,5))],
+    meds:[m("atenolol","50 mg","",ago(107),null,"ineffective","From a pharmacy before joining; BP 174/104 on it."),m("amlodipine","5 mg",ago(107),ago(79),null,"dose","Changed to 10 mg at Step 3."),m("lisinopril","10 mg",ago(107),ago(79),null,"dose","Changed to 20 mg at Step 3."),m("amlodipine","10 mg",ago(79),null,"titrating"),m("lisinopril","20 mg",ago(79),ago(51),null,"sidefx","Dry cough. Do not restart."),m("losartan","100 mg",ago(51),null,"titrating"),m("hctz","25 mg",ago(23),null,"titrating")]},
+   {id:"ex2",example:true,clinicId:"VHC-0002",name:"Jallah Kollie",phone:"0886 000 003",birthYear:1961,sex:"M",pathway:1,ras:"losartan",cond:{diabetes:true},cuff:"Large (32–42 cm)",arm:"Right",allergies:"",area:"Example area",enrolled:ago(160),step:3,updatedAt:"",
+    visits:[v(ago(160),[[170,102],[166,100],[164,100]],2,null,"Started Step 2.",ago(132)),v(ago(132),[[142,88],[140,86],[138,86]],3,0,"Moved from Step 2 to Step 3.",ago(104)),v(ago(40),[[128,78],[126,78],[126,76]],3,0,"At target: keep the same medicines.",addDays(t,50))],
+    meds:[m("amlodipine","5 mg",ago(160),ago(132),null,"dose","Changed to 10 mg at Step 3."),m("losartan","50 mg",ago(160),ago(132),null,"dose","Changed to 100 mg at Step 3."),m("amlodipine","10 mg",ago(132),null,"working"),m("losartan","100 mg",ago(132),null,"working")]},
+   {id:"ex3",example:true,clinicId:"VHC-0003",name:"Musu Tarr",phone:"0775 000 004",birthYear:1988,sex:"F",pathway:2,ras:"losartan",cond:{},cuff:"Standard (22–32 cm)",arm:"Left",allergies:"",area:"Example area",enrolled:ago(33),step:1,updatedAt:"",
+    visits:[v(ago(47),[[152,96],[148,94],[146,94]],0,null,"Possible hypertension: check again.",ago(33)),v(ago(33),[[150,94],[148,92],[146,92]],1,null,"Started Step 1.",ago(5))],
+    meds:[m("amlodipine","5 mg",ago(33),null,"titrating")]}
+  ];
+}
+
+/* ---------- sync with the clinic Google Sheet ---------- */
+let syncing=false, online=navigator.onLine!==false;
+function syncState(){
+  if(!S.cfg.url)return {k:"",t:"No sync"};
+  if(S.syncError)return {k:"err",t:"Sync error"};
+  if(!online)return {k:"wait",t:S.outbox.length?S.outbox.length+" to send":"Offline"};
+  if(S.outbox.length)return {k:"wait",t:S.outbox.length+" to send"};
+  return {k:"ok",t:"Synced"};
+}
+async function api(action,extra){
+  const ctl=new AbortController();const tm=setTimeout(()=>ctl.abort(),25000);
+  try{
+    const r=await fetch(S.cfg.url,{method:"POST",body:JSON.stringify(Object.assign({action,code:S.cfg.code,device:S.device},extra||{})),signal:ctl.signal,redirect:"follow"});
+    let j;try{j=await r.json()}catch(_){throw new Error("The link did not answer like the clinic server. Check the link, and that the script is deployed for Anyone")}if(!j.ok)throw new Error(j.error||"Server said no");return j;
+  }finally{clearTimeout(tm)}
+}
+function payload(p){const c=JSON.parse(JSON.stringify(p));c.meds.forEach(m=>m.drugName=medName(m));return c}
+async function sync(){
+  if(syncing||!S.cfg.url||!S.outbox.length)return drawBar();
+  syncing=true;drawBar();
+  try{
+    for(const id of S.outbox.slice()){
+      const p=P(id);
+      if(p){const j=await api("upsert",{patient:payload(p)});if(j.newer){const i=S.patients.findIndex(x=>x.id===id);S.patients[i]=j.newer}}
+      S.outbox=S.outbox.filter(x=>x!==id);S.lastSync=new Date().toISOString();S.syncError=null;save();
+    }
+  }catch(e){S.syncError=e.name==="AbortError"?"No answer from the clinic server (slow or no internet)":/Failed to fetch|NetworkError|Load failed/.test(String(e.message))?"No internet connection":String(e.message||e);save()}
+  syncing=false;drawBar();
+}
+window.addEventListener("online",()=>{online=true;sync()});
+window.addEventListener("offline",()=>{online=false;drawBar()});
+setInterval(()=>{if(document.visibilityState==="visible"&&S.outbox.length)sync()},60000);
+
+/* ---------- navigation (Android back button works) ---------- */
+let V={name:"list"},stack=[],ui={filter:"all",q:""};
+function go(v){stack.push(V);V=v;try{history.pushState({d:stack.length},"")}catch(e){}render()}
+function back(){if(!stack.length)return;V=stack.pop();render()}
+let popped=false;
+function goBack(){popped=false;try{history.back()}catch(e){}setTimeout(()=>{if(!popped)back()},350)}
+window.addEventListener("popstate",()=>{popped=true;if(S2.open){closeSheet();try{history.pushState({},"")}catch(e){}return}back()});
+function root(name){stack=[];V={name};render()}
+
+/* ---------- rendering ---------- */
+function drawBar(){
+  const sub=["patient","visit","form","find"].includes(V.name);
+  const p=V.id?P(V.id):null;
+  const titles={list:["BP Record","Vitality HTN / Echo Clinic"],due:["Follow-up","Overdue and due soon"],settings:["Sync and backup","Clinic database"],patient:[p?p.name:"",p?(p.clinicId||""):""],visit:["New visit",p?p.name:""],form:[V.edit?"Edit patient":"New patient",""],find:["Find on clinic server",""]};
+  const [t,s]=titles[V.name]||["",""];const st=syncState();
+  $("#bar").innerHTML=`${sub?`<button class="icon-btn" data-act="back" aria-label="Back">${I.back}</button>`:`<img alt="Clinic logo" src="${LOGO}">`}
+   <div class="bar-title"><b>${esc(t)}</b>${s?`<span>${esc(s)}</span>`:""}</div>
+   <button class="sync ${st.k}" data-act="gosync" aria-label="Sync status: ${st.t}"><i></i>${syncing?"Syncing…":st.t}</button>`;
+}
+function render(){
+  drawBar();
+  const m=$("#main");m.className=V.name==="visit"?"wiz":"";
+  const views={list:vList,due:vDue,settings:vSettings,patient:vPatient,visit:vVisit,form:vForm,find:vFind};
+  if(V.id&&!P(V.id)&&V.name!=="form"){V={name:"list"};stack=[]}
+  m.innerHTML=views[V.name]();
+  const rootTabs=["list","due","settings"];
+  if(V.name==="visit")$("#bottom").innerHTML=wizFoot();
+  else if(rootTabs.includes(V.name)){const od=S.patients.filter(p=>{const l=lastV(p);return l&&l.next&&l.next<today()}).length;
+    $("#bottom").innerHTML=`${V.name==="list"?`<button class="fab" data-act="newpt">${I.plus}New patient</button>`:""}<nav class="nav" aria-label="Main"><div class="nav-in">
+    <button data-root="list" aria-current="${V.name==="list"?"page":"false"}">${I.people}Patients</button>
+    <button data-root="due" aria-current="${V.name==="due"?"page":"false"}">${I.due}Follow-up${od?`<span class="badge">${od}</span>`:""}</button>
+    <button data-root="settings" aria-current="${V.name==="settings"?"page":"false"}">${I.cloud}Sync</button></div></nav>`}
+  else $("#bottom").innerHTML="";
+  if(V.name==="visit")wizBind();
+  window.scrollTo(0,0);
+}
+function exBanner(){return S.patients.some(p=>p.example)?`<div class="banner"><span><b>Example patients are shown</b> so you can see how it works. They are never sent to the clinic database.</span><button class="btn sec" data-act="delex">Remove examples</button></div>`:""}
+
+function status(p){const l=lastV(p);return l?classify(p,l.sbp,l.dbp):null}
+function nextInfo(p){const l=lastV(p);if(!l||!l.next)return null;const n=days(today(),l.next);return {n,t:n<0?`${-n} days overdue`:n===0?"Due today":`in ${n} days`,late:n<0}}
+function pitem(p){const l=lastV(p),ni=nextInfo(p);return `<button class="pitem" data-open="${p.id}"><span class="n">${esc(p.name)}</span>${chip(status(p))}<span class="s">${p.example?'<b style="color:var(--gold)">Example</b> · ':""}<span class="num">${esc(p.clinicId||"")}</span>${l?` · <span class="num">${l.sbp}/${l.dbp}</span> on ${fmtS(l.date)}`:""}${ni?` · ${ni.late?`<b style="color:var(--bad)">${ni.t}</b>`:"next "+fmtS(l.next)}`:""}</span></button>`}
+
+function vList(){
+  return `${exBanner()}
+  <div class="search">${I.search}<input id="q" type="search" placeholder="Search name, clinic ID or phone" value="${esc(ui.q)}" autocomplete="off" aria-label="Search patients"></div>
+  <div class="chips" role="group" aria-label="Filter">${[["all","All ("+S.patients.length+")"],["due","Due in 7 days"],["above","Not at target"],["good","At target"]].map(([k,t])=>`<button class="fchip" data-filter="${k}" aria-pressed="${ui.filter===k}">${t}</button>`).join("")}</div>
+  <div id="results" style="display:flex;flex-direction:column;gap:14px">${listResults()}</div>
+  ${S.cfg.role==="staff"?`<button class="btn ghost" data-act="find">${I.search}Find a patient on the clinic server</button>`:""}`;
+}
+function listResults(){
+  const q=ui.q.trim().toLowerCase();
+  let ps=S.patients.filter(p=>!q||[p.name,p.clinicId,p.phone].join(" ").toLowerCase().includes(q)||String(p.phone||"").replace(/\D/g,"").includes(q.replace(/\D/g,"")||"~"));
+  const f=ui.filter;
+  if(f==="due")ps=ps.filter(p=>{const n=nextInfo(p);return n&&n.n<=7});
+  if(f==="above")ps=ps.filter(p=>{const s=status(p);return s&&s.k!=="good"});
+  if(f==="good")ps=ps.filter(p=>{const s=status(p);return s&&s.k==="good"});
+  ps.sort((a,b)=>{const na=nextInfo(a),nb=nextInfo(b);return (na?na.n:9999)-(nb?nb.n:9999)});
+  return ps.length?`<div class="plist">${ps.map(pitem).join("")}</div>`:`<div class="empty">${S.patients.length?"No patients match.":"No patients yet. Tap <b>New patient</b> to start."}</div>`;
+}
+
+function vDue(){
+  const t=today();const rows=S.patients.map(p=>({p,ni:nextInfo(p)})).filter(x=>x.ni&&x.ni.n<=7).sort((a,b)=>a.ni.n-b.ni.n);
+  const over=rows.filter(x=>x.ni.n<0),soon=rows.filter(x=>x.ni.n>=0);
+  const item=({p,ni})=>`<div class="card" style="gap:10px"><div class="card-h"><button class="link" style="font-size:1.05rem;text-align:left;padding:0;min-height:0" data-open="${p.id}">${esc(p.name)}</button><span class="chip ${ni.late?"c-bad":"c-gold"}">${ni.t}</span></div>
+    <div class="sm muted">${esc(p.clinicId||"")} · <span class="num">${esc(p.phone||"no phone")}</span>${p.kinPhone?` · next of kin <span class="num">${esc(p.kinPhone)}</span>`:""}</div>
+    ${p.phone?`<div class="row2"><a class="btn sec" href="tel:${esc(tel(p.phone))}">${I.phone}Call</a><a class="btn sec" href="https://wa.me/${wa(p.phone)}?text=${encodeURIComponent(remind(p))}" target="_blank" rel="noopener">${I.chat}WhatsApp</a></div>`:""}</div>`;
+  return `<div class="card" style="gap:6px"><h2 style="font-size:1.1rem">Who to contact today</h2><p class="sm muted" style="margin:0">Missed visits: call within 3 days, again at 7 days, home visit by day 14–30.</p></div>
+  ${over.length?`<div class="eyebrow">Overdue (${over.length})</div>${over.map(item).join("")}`:""}
+  ${soon.length?`<div class="eyebrow">Due in the next 7 days (${soon.length})</div>${soon.map(item).join("")}`:""}
+  ${!rows.length?`<div class="empty">Nobody is overdue or due this week.</div>`:""}`;
+}
+const tel=ph=>String(ph).replace(/[^\d+]/g,"");
+function wa(ph){let d=String(ph).replace(/\D/g,"");if(d.startsWith("00"))d=d.slice(2);if(d.startsWith("231"))return d;if(d.startsWith("0"))d=d.slice(1);return "231"+d}
+function remind(p){const l=lastV(p);return `Hello ${p.name.split(" ")[0]}, this is Vitality clinic. Your pressure check was due on ${l?fmt(l.next):"your visit date"}. Please come when you can, and do not stop your pills. Reply if you need help.`}
+
+function vPatient(){
+  const p=P(V.id),l=lastV(p),ni=nextInfo(p),t=target(p),a=age(p),tab=ui.tab||"summary";
+  const act=active(p);
+  let body="";
+  if(tab==="summary"){
+    body=`<div class="card chart"><div class="card-h"><h2>BP over time</h2><span class="sm muted">target &lt;<span class="num">${t.s}/${t.d}</span></span></div>${chart(p)}<div class="legend"><span><i style="background:var(--sbp)"></i>Top (systolic)</span><span><i style="background:var(--dbp)"></i>Bottom (diastolic)</span></div></div>
+    <div class="card"><div class="card-h"><h2>Treatment step</h2><span class="sm muted">Pathway ${p.pathway==2?"2 (no ACE/ARB)":"1"}</span></div><div class="ladder">${Array.from({length:maxStep(p)},(_,i)=>i+1).map(s=>`<div class="rung ${s===p.step?"on":s<p.step?"past":""}"><b>${s}</b><span>${esc(stepText(p,s))}</span></div>`).join("")}<div class="rung ${p.step>maxStep(p)?"on":""}"><b>${maxStep(p)+1}</b><span>Physician review</span></div></div></div>
+    <div class="card"><div class="card-h"><h2>Taking now</h2><button class="link" data-tab="meds">All medicines</button></div>${act.length?act.map(m=>`<div class="med-h"><span><span class="med-n">${esc(medName(m))}</span> <span class="med-d">${esc(m.dose)}</span></span>${mchip(m)}</div>`).join(""):`<p class="muted" style="margin:0">No BP medicines.</p>`}</div>
+    <div class="card"><div class="card-h"><h2>Details</h2><button class="link" data-act="edit">Edit</button></div>
+     <div class="sm" style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px"><span class="muted">Phone</span><span class="num">${esc(p.phone||"—")}</span><span class="muted">Next of kin</span><span class="num">${esc(p.kinPhone||"—")}</span><span class="muted">Home</span><span>${esc(p.area||"—")}</span><span class="muted">Cuff / arm</span><span>${esc(p.cuff||"—")}, ${esc(p.arm||"—")}</span><span class="muted">High-risk</span><span>${highRisk(p)?Object.entries({diabetes:"Diabetes",kidney:"Kidney disease",stroke:"Past stroke",mi:"Past heart attack",hf:"Heart failure"}).filter(([k])=>(p.cond||{})[k]).map(([,v])=>v).join(", "):"No"}</span><span class="muted">Enrolled</span><span>${fmt(p.enrolled)}</span></div></div>`;
+  }else if(tab==="meds"){
+    const stopped=p.meds.filter(m=>m.end),prob=stopped.filter(m=>(REASONS[m.reason]||{}).p),hist=stopped.filter(m=>!(REASONS[m.reason]||{}).p);
+    body=`<div class="card"><div class="card-h"><h2>Taking now</h2><span class="sm muted">Step ${p.step||0}</span></div>
+      <p class="sm muted" style="margin:0"><span class="chip c-gold">Adjusting</span> dose still being worked up. <span class="chip c-good">Working</span> BP at target on it.</p>
+      ${act.length?act.map(m=>medCard(m,true)).join(""):`<p class="muted" style="margin:0">No BP medicines now.</p>`}
+      <button class="btn ghost" data-act="addmed">${I.plus}Add a medicine</button></div>
+     <div class="card"><h2>Did not work or caused problems</h2>${prob.length?prob.map(m=>medCard(m,false)).join(""):`<p class="muted" style="margin:0">None recorded.</p>`}</div>
+     <div class="card"><h2>Dose changes and past medicines</h2>${hist.length?hist.map(m=>`<div class="vrow"><span><b>${esc(medName(m))}</b> <span class="med-d">${esc(m.dose)}</span></span>${mchip(m)}<span class="s">${m.start?fmtS(m.start):"Before clinic"} to ${fmtS(m.end)}${m.note?" · "+esc(m.note):""}</span></div>`).join(""):`<p class="muted" style="margin:0">None yet.</p>`}</div>`;
+  }else{
+    body=`<div class="card">${p.visits.length?p.visits.slice().reverse().map(v=>`<div class="vrow"><span><b class="num">${v.sbp}/${v.dbp}</b> <span class="sm muted">${fmt(v.date)}</span></span>${chip(classify(p,v.sbp,v.dbp))}<span class="s">${v.step?`Step ${v.step}. `:""}${esc(v.action||"")}${v.missed!=null?` Missed pills ${v.missed}/7 days.`:""}${v.note?` Note: ${esc(v.note)}`:""}</span></div>`).join(""):`<p class="muted" style="margin:0">No visits yet.</p>`}</div>`;
+  }
+  return `${p.example?`<div class="banner"><span><b>Example patient.</b> Not sent to the clinic database.</span></div>`:""}
+  <section class="hero" aria-label="Patient summary">
+    <div class="who"><div><h1>${esc(p.name)}</h1><div class="meta"><span class="num">${esc(p.clinicId||"No ID")}</span>${a?`<span>${a} yrs</span>`:""}<span>${p.sex==="F"?"Female":"Male"}</span>${highRisk(p)?"<span>High-risk</span>":""}</div></div></div>
+    ${p.allergies?`<div class="chip c-bad" style="white-space:normal;align-self:flex-start">Allergy: ${esc(p.allergies)}</div>`:""}
+    <div class="bp">${l?`<div class="bpv">${l.sbp}/${l.dbp}<small>mmHg</small></div>`:`<div style="font-size:1.1rem;opacity:.85">No BP yet</div>`}${chip(status(p))}</div>
+    <dl class="facts" style="margin:0"><div><dt>Last visit</dt><dd>${l?fmtS(l.date):"—"}</dd></div><div><dt>Next visit</dt><dd class="${ni&&ni.late?"late":""}">${l&&l.next?fmtS(l.next):"—"}</dd>${ni?`<span class="sm ${ni.late?"late":""}" style="opacity:.85">${ni.t}</span>`:""}</div><div><dt>Step</dt><dd>${p.step?`${p.step} of ${maxStep(p)}`:"None"}</dd></div></dl>
+    ${p.phone?`<div class="contact"><a href="tel:${esc(tel(p.phone))}">${I.phone}Call</a><a href="https://wa.me/${wa(p.phone)}" target="_blank" rel="noopener">${I.chat}WhatsApp</a></div>`:""}
+  </section>
+  <button class="btn big" data-act="visit">${I.heart}Record a visit</button>
+  <div class="seg" role="tablist">${[["summary","Summary"],["meds","Medicines"],["visits","Visits ("+p.visits.length+")"]].map(([k,t])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${t}</button>`).join("")}</div>
+  ${body}`;
+}
+function mchip(m){if(m.end){const r=REASONS[m.reason]||REASONS.other;return `<span class="chip ${r.c}">${r.t}</span>`}return m.status==="working"?`<span class="chip c-good">Working</span>`:`<span class="chip c-gold">Adjusting</span>`}
+function medCard(m,act){return `<div class="med ${act?"":"stopped"}"><div class="med-h"><span><span class="med-n">${esc(medName(m))}</span> <span class="med-d">${esc(m.dose)}</span></span>${mchip(m)}</div><span class="sm muted">${esc(m.freq||"")} · ${m.start?`since ${fmtS(m.start)}`:"before clinic"}${m.end?` · stopped ${fmtS(m.end)}`:""}${m.note?` · ${esc(m.note)}`:""}</span>${act?`<button class="btn sec" data-stop="${m.id}">Stop, or mark as not working</button>`:""}</div>`}
+
+function chart(p){
+  const vs=p.visits;if(vs.length<2)return `<p class="sm muted" style="margin:0">The chart appears after 2 visits.</p>`;
+  const W=340,H=190,L=32,R=8,T=12,B=30,t=target(p);
+  let lo=Math.min(60,...vs.map(v=>v.dbp-10)),hi=Math.max(200,...vs.map(v=>v.sbp+10));lo=Math.floor(lo/20)*20;hi=Math.ceil(hi/20)*20;
+  const x=i=>L+i*(W-L-R)/(vs.length-1),y=v=>T+(hi-v)*(H-T-B)/(hi-lo);let g="";
+  for(let v=lo;v<=hi;v+=20)g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`;
+  [t.s,t.d].forEach(v=>g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--good)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${L+4}" y="${y(v)-4}" font-size="9.5" font-weight="700" fill="var(--good)">target ${v}</text>`);
+  const path=k=>vs.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v[k]).toFixed(1)).join(" ");
+  g+=`<path d="${path("sbp")}" fill="none" stroke="var(--sbp)" stroke-width="2.5"/><path d="${path("dbp")}" fill="none" stroke="var(--dbp)" stroke-width="2.5"/>`;
+  const ev=Math.ceil(vs.length/4);
+  vs.forEach((v,i)=>{const last=i===vs.length-1,r=last?5:3.5;g+=`<circle cx="${x(i)}" cy="${y(v.sbp)}" r="${r}" fill="var(--sbp)" stroke="var(--surface)" stroke-width="1.5"/><circle cx="${x(i)}" cy="${y(v.dbp)}" r="${r}" fill="var(--dbp)" stroke="var(--surface)" stroke-width="1.5"/>`;
+    if(last)g+=`<text x="${x(i)-8}" y="${y(v.sbp)-9}" text-anchor="end" font-size="11.5" font-weight="700" fill="var(--sbp)">${v.sbp}</text><text x="${x(i)-8}" y="${y(v.dbp)+17}" text-anchor="end" font-size="11.5" font-weight="700" fill="var(--dbp)">${v.dbp}</text>`;
+    if(i%ev===0||last)g+=`<text x="${x(i)}" y="${H-12}" text-anchor="${i===0?"start":last?"end":"middle"}" font-size="10" fill="var(--muted)">${fmtS(v.date)}</text>`;
+    if(v.step&&(i===0||vs[i-1].step!==v.step))g+=`<text x="${x(i)}" y="${H-1}" text-anchor="${i===0?"start":last?"end":"middle"}" font-size="9.5" font-weight="700" fill="var(--accent)">S${v.step}</text>`});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="BP at each visit with target lines">${g}</svg>`;
+}
+
+/* ---------- visit wizard ---------- */
+function wizSteps(p){const w=V.w,{s,d}=avg(w);const st=["bp"];if(p.step)st.push("pills");else if(s&&(s>=140||d>=90)&&s<160&&d<100)st.push("confirm");if(s&&(s>=180||d>=110))st.push("danger");st.push("plan");return st}
+function avg(w){const r=w.r.map(x=>x.map(n=>+n||0));if(r[1][0]&&r[1][1]&&r[2][0]&&r[2][1])return {s:Math.round((r[1][0]+r[2][0])/2),d:Math.round((r[1][1]+r[2][1])/2),n:3};if(r[0][0]&&r[0][1]&&!r[1][0]&&!r[2][0])return {s:r[0][0],d:r[0][1],n:1};return {}}
+function vVisit(){
+  const p=P(V.id),w=V.w,st=wizSteps(p),cur=st[w.i];
+  const dots=`<div class="steps" aria-label="Step ${w.i+1} of ${st.length}">${st.map((_,i)=>`<i class="${i<=w.i?"on":""}"></i>`).join("")}</div>`;
+  if(cur==="bp"){
+    const a=avg(w);
+    return `${dots}<div class="q">Blood pressure</div><p class="sm muted" style="margin:0">Seated, 5 minutes rest, ${esc((p.cuff||"correct").split(" (")[0].toLowerCase())} cuff, ${esc((p.arm||"same").toLowerCase())} arm. 3 readings, 1 minute apart.</p>
+    <div class="card"><div class="bpgrid"><span></span><span class="h">Top</span><span></span><span class="h">Bottom</span>
+    ${[0,1,2].map(i=>`<span class="k">#${i+1}</span><input class="bpin" id="r${i}s" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="${esc(w.r[i][0])}" aria-label="Reading ${i+1} top number" enterkeyhint="next"><span class="sl">/</span><input class="bpin" id="r${i}d" inputmode="numeric" pattern="[0-9]*" maxlength="3" value="${esc(w.r[i][1])}" aria-label="Reading ${i+1} bottom number" enterkeyhint="next">`).join("")}
+    </div></div>
+    <div class="avg"><div><div style="font-weight:700">Recorded BP</div><div class="sm" style="opacity:.8">average of #2 and #3</div></div><b id="avgOut">${a.s?a.s+"/"+a.d:"—/—"}</b></div>
+    <label class="f">Visit date<input type="date" id="vdate" value="${w.date}"></label>`;
+  }
+  if(cur==="pills")return `${dots}<div class="q">In the last 7 days, how many days were pills missed?</div><div class="opts c4">${[0,1,2,3,4,5,6,7].map(n=>`<button class="opt center" data-missed="${n}" aria-pressed="${w.missed===n}" style="font-size:1.4rem;min-height:64px">${n}</button>`).join("")}</div><p class="sm muted" style="margin:0">Ask kindly. Many people miss pills because of cost, side effects, running out, or feeling fine.</p>`;
+  if(cur==="confirm")return `${dots}<div class="q">Was BP 140/90 or higher at an earlier check (another day)?</div><div class="opts">${[[true,"Yes, this is the second high reading","Diagnose and start Step 1"],[false,"No, this is the first high reading","Ask them to come back within 2 weeks"]].map(([v,t,s])=>`<button class="opt" data-confirm="${v}" aria-pressed="${w.confirm===v}"><span class="tick"></span><span>${t}<small>${s}</small></span></button>`).join("")}</div>`;
+  if(cur==="danger"){const D=["Chest pain","Hard breathing","Weakness, face droop, or trouble speaking","Severe headache with vomiting or confusion","Sudden vision loss","Very little urine"];
+    return `${dots}<div class="q" style="color:var(--bad)">Very high BP. Any danger signs?</div><div class="opts">${D.map((t,i)=>`<button class="opt" data-danger="${i}" aria-pressed="${w.danger.includes(i)}"><span class="tick"></span>${t}</button>`).join("")}<button class="opt" data-danger="none" aria-pressed="${w.none}"><span class="tick"></span>None of these</button></div><p class="sm muted" style="margin:0">If none: let them rest 15 minutes and measure again.</p>`}
+  const {s,d}=avg(w),danger=w.danger.length>0,sg=suggest(p,s,d,w.missed,danger,w.confirm===true);V.sg=sg;
+  if(w.choice==null)w.choice=(sg.next!=null&&sg.next!==(p.step||0))?"apply":"keep";
+  if(w.next==null)w.next=addDays(w.date,sg.ret);
+  const canApply=sg.next!=null&&sg.next!==(p.step||0);
+  const Q=[["1 week",7],["2 weeks",14],["4 weeks",28],["3 months",90]];
+  return `${dots}<div class="avg"><div><div style="font-weight:700">Recorded BP</div><div class="sm" style="opacity:.8">target below ${target(p).s}/${target(p).d}</div></div><b>${s}/${d}</b></div>
+  <div class="sug ${sg.cls}"><span class="eyebrow" style="color:inherit">Protocol says</span><b>${esc(sg.title)}</b><ul>${sg.lines.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+  ${canApply?`<div class="opts"><button class="opt" data-choice="apply" aria-pressed="${w.choice==="apply"}"><span class="tick"></span><span>${p.step?"Move":"Start"} to Step ${sg.next}<small>${esc(stepText(p,sg.next))}</small></span></button><button class="opt" data-choice="keep" aria-pressed="${w.choice==="keep"}"><span class="tick"></span><span>Keep current medicines<small>Record why in the note</small></span></button></div>`:""}
+  <div class="f" style="display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:.92rem">Next visit
+   <div class="opts c4">${Q.map(([t,n])=>`<button class="opt center" data-next="${addDays(w.date,n)}" aria-pressed="${w.next===addDays(w.date,n)}" style="font-size:.9rem;padding:8px 4px">${t}</button>`).join("")}</div>
+   <input type="date" id="vnext" value="${w.next}" aria-label="Next visit date"></div>
+  <label class="f">Note (side effects, reasons)<textarea id="vnote" rows="2">${esc(w.note)}</textarea></label>`;
+}
+function wizFoot(){const p=P(V.id),w=V.w,st=wizSteps(p),cur=st[w.i],last=w.i===st.length-1;
+  let ok=true;const a=avg(w);if(cur==="bp")ok=!!a.s;if(cur==="pills")ok=w.missed!=null;if(cur==="confirm")ok=w.confirm!=null;if(cur==="danger")ok=w.none||w.danger.length>0;
+  return `<div class="foot"><div class="foot-in"><button class="btn sec" data-act="${w.i?"wprev":"back"}">${w.i?"Back":"Cancel"}</button><button class="btn" id="wnext" data-act="${last?"wsave":"wnext"}" ${ok?"":"disabled"}>${last?"Save visit":"Next"}</button></div></div>`}
+function wizBind(){
+  const w=V.w,ins=[...document.querySelectorAll(".bpin")];
+  ins.forEach((el,idx)=>el.addEventListener("input",()=>{
+    el.value=el.value.replace(/\D/g,"").slice(0,3);const [i,k]=[+el.id[1],el.id[2]==="s"?0:1];w.r[i][k]=el.value;
+    const v=el.value,need=(v[0]==="1"||v[0]==="2")?3:2;if(v.length>=need&&ins[idx+1])ins[idx+1].focus();
+    const a=avg(w);$("#avgOut").textContent=a.s?a.s+"/"+a.d:"—/—";$("#bottom").innerHTML=wizFoot();
+  }));
+  const vd=$("#vdate");if(vd)vd.addEventListener("change",()=>{w.date=vd.value||today()});
+  const vn=$("#vnext");if(vn)vn.addEventListener("change",()=>{w.next=vn.value;rerenderKeep()});
+  const nt=$("#vnote");if(nt)nt.addEventListener("input",()=>{w.note=nt.value});
+  if(ins[0]&&!w.r[0][0])setTimeout(()=>ins[0].focus(),50);
+}
+function rerenderKeep(){const y=window.scrollY;render();window.scrollTo(0,y)}
+
+/* ---------- forms ---------- */
+function vForm(){
+  const e=V.edit?P(V.id):null,c=(e&&e.cond)||{},v=(k,d="")=>esc(e&&e[k]!=null?e[k]:d),f=ui.form||(ui.form={sex:e?e.sex:"F",pathway:e?e.pathway:1,ras:e?e.ras:"losartan",cond:Object.assign({},c),cuff:e?e.cuff:"Standard (22–32 cm)",arm:e?e.arm:"Left"});
+  const seg=(key,opts)=>`<div class="opts c${opts.length>2?4:2}" style="${opts.length===3?"grid-template-columns:repeat(3,1fr)":""}">${opts.map(([val,t])=>`<button class="opt center" data-f="${key}" data-v="${esc(val)}" aria-pressed="${String(f[key])===String(val)}">${t}</button>`).join("")}</div>`;
+  return `<div class="card">
+   <label class="f">Full name<input id="fname" value="${v("name")}" autocomplete="off" autocapitalize="words"></label>
+   <div class="row2"><label class="f">Clinic ID<input id="fid" value="${v("clinicId","VHC-")}" autocapitalize="characters"></label><label class="f">Birth year<input id="fby" inputmode="numeric" maxlength="4" value="${v("birthYear")}" placeholder="1972"></label></div>
+   <div class="f" style="display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:.92rem">Sex${seg("sex",[["F","Female"],["M","Male"]])}</div>
+   <label class="f">Phone<input id="fph" type="tel" inputmode="tel" value="${v("phone")}" placeholder="0770 123 456"></label>
+   <label class="f">Next-of-kin phone<input id="fkin" type="tel" inputmode="tel" value="${v("kinPhone")}"></label>
+   <label class="f">Home area and landmark<input id="farea" value="${v("area")}"></label>
+   <label class="f">Enrolled<input id="fenr" type="date" value="${v("enrolled",today())}"></label></div>
+  <div class="card"><h2 style="font-size:1.05rem">Measuring</h2>
+   <div class="f" style="display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:.92rem">Cuff size${seg("cuff",[["Small (17–22 cm)","Small"],["Standard (22–32 cm)","Standard"],["Large (32–42 cm)","Large"]])}</div>
+   <div class="f" style="display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:.92rem">Arm used${seg("arm",[["Left","Left"],["Right","Right"]])}</div></div>
+  <div class="card"><h2 style="font-size:1.05rem">High-risk conditions</h2><p class="sm muted" style="margin:0">Any of these sets the target to below 130/80.</p>
+   <div class="opts">${[["diabetes","Diabetes"],["kidney","Kidney disease"],["stroke","Past stroke"],["mi","Past heart attack"],["hf","Heart failure"]].map(([k,t])=>`<button class="opt" data-cond="${k}" aria-pressed="${!!f.cond[k]}"><span class="tick"></span>${t}</button>`).join("")}</div></div>
+  <div class="card"><h2 style="font-size:1.05rem">Treatment pathway</h2>
+   <div class="opts"><button class="opt" data-f="pathway" data-v="1" aria-pressed="${f.pathway==1}"><span class="tick"></span><span>Pathway 1: standard<small>Men, and women who cannot get pregnant or use implant / IUD / injectable</small></span></button>
+   <button class="opt" data-f="pathway" data-v="2" aria-pressed="${f.pathway==2}"><span class="tick"></span><span>Pathway 2: no ACE-i / ARB<small>Women who could get pregnant without reliable family planning</small></span></button></div>
+   ${f.pathway==1?`<div class="f" style="display:flex;flex-direction:column;gap:6px;font-weight:700;font-size:.92rem">Second drug${seg("ras",[["losartan","Losartan"],["lisinopril","Lisinopril"]])}</div>`:""}
+   <label class="f">Allergies, or drugs never to give<input id="fall" value="${v("allergies")}" placeholder="e.g. lisinopril: face swelling"></label></div>
+  <button class="btn big" data-act="savept">${e?"Save changes":"Create patient"}</button>
+  ${e?`<button class="btn danger" data-act="delpt">Delete this patient from this phone</button>`:""}`;
+}
+function readForm(){["fname","fid","fby","fph","fkin","farea","fenr","fall"].forEach(id=>{const el=$("#"+id);if(el)ui.form["_"+id]=el.value})}
+
+/* ---------- settings / sync ---------- */
+function vSettings(){
+  const c=S.cfg,st=syncState();
+  return `<div class="card"><div class="card-h"><h2>Clinic database</h2><span class="chip ${st.k==="ok"?"c-good":st.k==="err"?"c-bad":st.k==="wait"?"c-gold":"c-plain"}">${st.t}</span></div>
+   <p class="sm muted" style="margin:0">Every change is saved on this phone first, then sent to the clinic's Google Sheet whenever there is internet. Nothing is lost when the network is down.</p>
+   ${c.url?`<div class="sm" style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px"><span class="muted">Connected as</span><b>${c.role==="staff"?"Clinic phone (staff)":"Patient phone (send only)"}</b><span class="muted">Last sent</span><span>${S.lastSync?new Date(S.lastSync).toLocaleString():"Not yet"}</span><span class="muted">Waiting to send</span><span>${S.outbox.length} patient record${S.outbox.length===1?"":"s"}</span></div>
+     ${S.syncError?`<div class="sug bad" style="padding:12px"><b style="font-size:1rem">Last try failed</b><span class="sm">${esc(S.syncError)}. It will retry automatically.</span></div>`:""}
+     <div class="row2"><button class="btn" data-act="syncnow">Send now</button><button class="btn sec" data-act="unlink">Disconnect</button></div>
+     ${c.role==="staff"?`<button class="btn sec" data-act="pull">Get updates from the clinic</button><button class="btn ghost" data-act="find">${I.search}Find a patient on the server</button>`:""}`
+   :`<label class="f">Clinic sync link<input id="curl" type="url" inputmode="url" placeholder="https://script.google.com/macros/s/…/exec" value=""></label>
+     <label class="f">Access code<input id="ccode" autocapitalize="characters" placeholder="W-… or S-…" value=""></label>
+     <button class="btn" data-act="connect">Connect</button>
+     <p class="sm muted" style="margin:0">The clinic manager gives you the link and code. A code starting with <b>S-</b> is for clinic phones; <b>W-</b> is for patients' phones.</p>`}
+  </div>
+  <div class="card"><h2>Backup file</h2><p class="sm muted" style="margin:0">A second copy you can keep in Google Drive or WhatsApp. Useful before changing phones.</p>
+   <div class="row2"><button class="btn sec" data-act="backup">Save backup</button><button class="btn sec" data-act="restore">Restore</button></div>
+   <input type="file" id="rfile" accept=".json,application/json,text/plain" hidden></div>
+  <div class="card"><h2>Reports</h2><p class="sm muted" style="margin:0">The Summary sheet in the clinic Google Sheet shows control rate and missed visits live. You can also export this phone's visits.</p>
+   <button class="btn sec" data-act="csv">Export visits (spreadsheet file)</button>
+   ${S.patients.some(p=>p.example)?`<button class="btn danger" data-act="delex">Remove example patients</button>`:""}</div>
+  <p class="sm muted" style="text-align:center;margin:0">Vitality BP Record v2 · protocol v1.0</p>`;
+}
+let findList=null;
+function vFind(){
+  return `<div class="search">${I.search}<input id="fq" type="search" placeholder="Name, clinic ID or phone" value="${esc(ui.fq||"")}" aria-label="Search the clinic server"></div><div id="fresults">${findResults()}</div>`;
+}
+function findResults(){
+  const q=(ui.fq||"").toLowerCase();
+  const rows=(findList||[]).filter(x=>!q||[x.name,x.clinicId,x.phone].join(" ").toLowerCase().includes(q)).slice(0,50);
+  return `${findList==null?`<div class="empty">Loading the clinic list…</div>`:rows.length?`<div class="plist">${rows.map(x=>`<button class="pitem" data-fetch="${esc(x.id)}"><span class="n">${esc(x.name)}</span><span class="chip ${P(x.id)?"c-good":"c-plain"}">${P(x.id)?"On this phone":"Download"}</span><span class="s">${esc(x.clinicId)} · <span class="num">${esc(x.phone)}</span></span></button>`).join("")}</div>`:`<div class="empty">No match on the clinic server.</div>`}`;
+}
+
+/* ---------- sheets (bottom panels) ---------- */
+const S2={open:false};
+function openSheet(html){S2.open=true;$("#sheet").innerHTML=`<div class="sheet-bg" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true"><span class="grab"></span>${html}</div></div>`}
+function closeSheet(){S2.open=false;$("#sheet").innerHTML=""}
+function stopSheet(m){ui.stop={id:m.id,reason:null};openSheet(`<h2 style="font-size:1.15rem">Stop ${esc(medName(m))} ${esc(m.dose)}?</h2><div class="opts" id="reasons">${[["ineffective","Did not control BP"],["sidefx","Side effect"],["allergy","Allergy: face or throat swelling"],["pregnancy","Pregnancy"],["stock","Out of stock"],["other","Other"]].map(([k,t])=>`<button class="opt" data-reason="${k}" aria-pressed="false"><span class="tick"></span>${t}</button>`).join("")}</div><label class="f">Details<input id="snote" placeholder="e.g. dry cough, ankle swelling"></label><div class="row2"><button class="btn sec" data-act="closesheet2">Keep taking</button><button class="btn danger" id="sok" data-act="stopok" disabled>Stop medicine</button></div>`)}
+function addMedSheet(){ui.am={drug:"amlodipine",dose:"5 mg",status:"titrating"};drawAddMed()}
+function drawAddMed(){const a=ui.am;openSheet(`<h2 style="font-size:1.15rem">Add a medicine</h2>
+  <label class="f">Medicine<select id="amdrug">${Object.entries(DRUGS).map(([k,v])=>`<option value="${k}" ${a.drug===k?"selected":""}>${v.n}</option>`).join("")}</select></label>
+  ${a.drug==="other"?`<label class="f">Name and dose<input id="amother" placeholder="e.g. Methyldopa 250 mg"></label>`:`<div class="opts c4">${DRUGS[a.drug].d.map(x=>`<button class="opt center" data-amdose="${x}" aria-pressed="${a.dose===x}">${x}</button>`).join("")}</div>`}
+  <div class="opts">${[["titrating","Taking now: adjusting"],["working","Taking now: working (BP at target)"],["ineffective","Taken before: did not control BP"],["sidefx","Taken before: side effect"],["allergy","Taken before: allergy"]].map(([k,t])=>`<button class="opt" data-amstatus="${k}" aria-pressed="${a.status===k}"><span class="tick"></span>${t}</button>`).join("")}</div>
+  <button class="btn" data-act="amsave">Add medicine</button>`)}
+
+/* ---------- events ---------- */
+function toast(t){const el=$("#toast");el.textContent=t;el.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>el.hidden=true,2600)}
+document.addEventListener("input",e=>{
+  if(e.target.id==="q"){ui.q=e.target.value;$("#results").innerHTML=listResults()}
+  if(e.target.id==="fq"){ui.fq=e.target.value;$("#fresults").innerHTML=findResults()}
+});
+document.addEventListener("change",e=>{
+  if(e.target.id==="amdrug"){ui.am.drug=e.target.value;ui.am.dose=(DRUGS[ui.am.drug].d[0]||"");drawAddMed()}
+  if(e.target.id==="rfile"){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>restoreText(String(r.result));r.readAsText(f)}
+});
+document.addEventListener("click",async e=>{
+  const t=e.target.closest("button,a,[data-act]");if(!t)return;const d=t.dataset;
+  if(d.root){root(d.root);return}
+  if(d.open){ui.tab="summary";go({name:"patient",id:d.open});return}
+  if(d.filter){ui.filter=d.filter;render();return}
+  if(d.tab){ui.tab=d.tab;render();return}
+  if(d.stop){const p=P(V.id);stopSheet(p.meds.find(m=>m.id===d.stop));return}
+  if(d.reason){ui.stop.reason=d.reason;document.querySelectorAll("#reasons .opt").forEach(b=>b.setAttribute("aria-pressed",b.dataset.reason===d.reason));$("#sok").disabled=false;return}
+  if(d.amdose){ui.am.dose=d.amdose;drawAddMed();return}
+  if(d.amstatus){ui.am.status=d.amstatus;drawAddMed();return}
+  if(d.fetch){try{toast("Downloading…");const j=await api("get",{id:d.fetch});merge([j.patient]);toast("Downloaded");ui.tab="summary";go({name:"patient",id:j.patient.id})}catch(err){toast(String(err.message||err))}return}
+  if(V.name==="visit"){const w=V.w;
+    if(d.missed!=null){w.missed=+d.missed;rerenderKeep();return}
+    if(d.confirm!=null){w.confirm=d.confirm==="true";rerenderKeep();return}
+    if(d.danger!=null){if(d.danger==="none"){w.none=!w.none;w.danger=[]}else{w.none=false;const i=+d.danger;w.danger=w.danger.includes(i)?w.danger.filter(x=>x!==i):w.danger.concat(i)}w.choice=null;w.next=null;rerenderKeep();return}
+    if(d.choice){w.choice=d.choice;rerenderKeep();return}
+    if(d.next){w.next=d.next;rerenderKeep();return}
+  }
+  if(V.name==="form"){
+    if(d.f){readForm();ui.form[d.f]=d.f==="pathway"?+d.v:d.v;rerenderKeep();restoreForm();return}
+    if(d.cond){readForm();ui.form.cond[d.cond]=!ui.form.cond[d.cond];rerenderKeep();restoreForm();return}
+  }
+  const act=d.act;if(!act)return;
+  if(act==="closesheet"&&e.target!==t)return;
+  const p=V.id?P(V.id):null;
+  switch(act){
+    case "back":goBack();break;
+    case "gosync":root("settings");break;
+    case "closesheet":case "closesheet2":closeSheet();break;
+    case "newpt":ui.form=null;go({name:"form"});break;
+    case "edit":ui.form=null;go({name:"form",id:p.id,edit:true});break;
+    case "visit":{const lv=lastV(p);go({name:"visit",id:p.id,w:{i:0,r:[["",""],["",""],["",""]],missed:null,confirm:null,danger:[],none:false,date:today(),next:null,note:"",choice:null}});break}
+    case "addmed":addMedSheet();break;
+    case "wnext":{const w=V.w;w.i++;w.choice=null;w.next=null;render();break}
+    case "wprev":V.w.i--;render();break;
+    case "wsave":{
+      const w=V.w,{s,d}=avg(w),sg=V.sg,prev=p.step||0;const apply=w.choice==="apply"&&sg.next!=null&&sg.next!==prev;
+      if(apply)applyStep(p,sg.next,w.date);
+      if(sg.controlled)active(p).forEach(m=>m.status="working");
+      let action=apply?(prev?`Moved from Step ${prev} to Step ${sg.next}.`:`Started Step ${sg.next}.`):(sg.next!=null&&sg.next!==prev?`Protocol suggested Step ${sg.next}; medicines kept the same.`:sg.title+".");
+      if(w.danger.length)action="Danger signs: sent to hospital.";
+      p.visits.push({id:uid(),date:w.date,r:w.r.map(x=>[+x[0]||null,+x[1]||null]),sbp:s,dbp:d,step:p.step||0,missed:p.step||prev?w.missed:null,action,next:w.next,note:w.note.trim()});
+      p.visits.sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
+      touch(p);ui.tab="summary";goBack();toast(apply?`Saved. Step ${p.step} medicines added.`:"Visit saved");break}
+    case "stopok":{const m=p.meds.find(x=>x.id===ui.stop.id);m.end=today();m.reason=ui.stop.reason;m.note=($("#snote").value||"").trim();m.status=null;
+      if(m.reason==="allergy"&&!(p.allergies||"").toLowerCase().includes(medName(m).toLowerCase()))p.allergies=(p.allergies?p.allergies+"; ":"")+medName(m)+(m.note?": "+m.note:"");
+      closeSheet();touch(p);render();toast(medName(m)+" stopped");break}
+    case "amsave":{const a=ui.am,m={id:uid(),drug:a.drug,dose:a.drug==="other"?"":a.dose,name:a.drug==="other"?(($("#amother")||{}).value||"").trim():"",freq:"Once daily",start:today(),end:null,status:null,reason:null,note:""};
+      if(a.drug==="other"&&!m.name){toast("Enter the medicine name");return}
+      if(["ineffective","sidefx","allergy"].includes(a.status)){m.end=today();m.start="";m.reason=a.status;if(a.status==="allergy")p.allergies=(p.allergies?p.allergies+"; ":"")+medName(m)}else m.status=a.status;
+      p.meds.push(m);closeSheet();touch(p);render();toast("Medicine added");break}
+    case "savept":{readForm();const f=ui.form,name=(f._fname||"").trim();if(!name){toast("Enter the patient's name");$("#fname").focus();return}
+      const isNew=!V.edit,x=isNew?{id:uid(),visits:[],meds:[],step:0}:P(V.id);
+      Object.assign(x,{name,clinicId:(f._fid||"").trim(),birthYear:(f._fby||"").trim(),sex:f.sex,phone:(f._fph||"").trim(),kinPhone:(f._fkin||"").trim(),area:(f._farea||"").trim(),enrolled:f._fenr||today(),cuff:f.cuff,arm:f.arm,pathway:f.pathway,ras:f.ras,cond:f.cond,allergies:(f._fall||"").trim()});
+      if(isNew)S.patients.push(x);touch(x);ui.form=null;if(isNew){ui.tab="summary";V={name:"patient",id:x.id};render()}else goBack();toast(isNew?"Patient created":"Saved");break}
+    case "delpt":openSheet(`<h2 style="font-size:1.15rem">Delete ${esc(p.name)} from this phone?</h2><p class="muted" style="margin:0">The copy in the clinic database is kept.</p><div class="row2"><button class="btn sec" data-act="closesheet2">Keep</button><button class="btn danger" data-act="delok">Delete</button></div>`);break;
+    case "delok":S.patients=S.patients.filter(x=>x.id!==p.id);S.outbox=S.outbox.filter(x=>x!==p.id);save();closeSheet();root("list");toast("Deleted from this phone");break;
+    case "delex":S.patients=S.patients.filter(x=>!x.example);save();render();toast("Examples removed");break;
+    case "connect":{const url=($("#curl").value||"").trim(),code=($("#ccode").value||"").trim();if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)){toast("Paste the full link that starts with https://script.google.com");return}if(!code){toast("Enter the access code");return}
+      S.cfg={url,code};toast("Connecting…");try{const j=await api("ping");S.cfg.role=j.role;S.syncError=null;S.patients.filter(x=>!x.example).forEach(x=>{if(!S.outbox.includes(x.id))S.outbox.push(x.id)});save();render();toast(j.role==="staff"?"Connected as clinic phone":"Connected");sync()}catch(err){S.cfg={};save();render();toast("Could not connect: "+(err.message||err))}break}
+    case "unlink":S.cfg={};S.syncError=null;save();render();toast("Disconnected");break;
+    case "syncnow":S.patients.filter(x=>!x.example).forEach(x=>{if(!S.outbox.includes(x.id))S.outbox.push(x.id)});save();await sync();render();toast(S.syncError?"Could not send yet":"All records sent");break;
+    case "pull":try{toast("Getting updates…");const j=await api("since",{since:S.cfg.lastPull||""});const n=merge(j.patients);S.cfg.lastPull=j.now;save();render();toast(n?`${n} patient record${n===1?"":"s"} updated`:"Already up to date")}catch(err){toast(String(err.message||err))}break;
+    case "find":findList=null;ui.fq="";go({name:"find"});try{const j=await api("list");findList=j.patients;if(V.name==="find")render()}catch(err){toast(String(err.message||err));findList=[];if(V.name==="find")render()}break;
+    case "backup":{const txt=JSON.stringify({app:"vitality-bp-record",version:2,exported:new Date().toISOString(),patients:S.patients.filter(x=>!x.example)}),name=`vitality-bp-backup-${today()}.json`;
+      try{const file=new File([txt],name,{type:"application/json"});if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:"BP Record backup"});toast("Backup shared");break}}catch(err){if(err&&err.name==="AbortError")break}
+      try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"application/json"}));a.download=name;document.body.appendChild(a);a.click();a.remove();toast("Backup file saved")}catch(err){toast("Backup not available here")}break}
+    case "restore":$("#rfile").click();break;
+    case "csv":{const q=v=>{v=v==null?"":String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};const rows=[["clinic_id","name","sex","birth_year","high_risk","pathway","visit_date","sbp","dbp","step","missed_days_of_7","action","next_visit"].join(",")];
+      S.patients.filter(x=>!x.example).forEach(x=>x.visits.forEach(v=>rows.push([x.clinicId,x.name,x.sex,x.birthYear,highRisk(x)?1:0,x.pathway,v.date,v.sbp,v.dbp,v.step,v.missed,v.action,v.next].map(q).join(","))));
+      try{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([rows.join("\n")],{type:"text/csv"}));a.download=`vitality-visits-${today()}.csv`;document.body.appendChild(a);a.click();a.remove();toast("Visits exported")}catch(err){toast("Export not available here")}break}
+  }
+});
+function restoreForm(){const f=ui.form;[["fname","_fname"],["fid","_fid"],["fby","_fby"],["fph","_fph"],["fkin","_fkin"],["farea","_farea"],["fenr","_fenr"],["fall","_fall"]].forEach(([id,k])=>{const el=$("#"+id);if(el&&f[k]!=null)el.value=f[k]})}
+function merge(list){let n=0;(list||[]).forEach(np=>{const i=S.patients.findIndex(x=>x.id===np.id);if(i<0){S.patients.push(np);n++}else if((np.updatedAt||"")>(S.patients[i].updatedAt||"")&&!S.outbox.includes(np.id)){S.patients[i]=np;n++}});save();return n}
+function restoreText(txt){let d;try{d=JSON.parse(txt)}catch(e){}if(!d||!Array.isArray(d.patients)){toast("That is not a BP Record backup file");return}const n=merge(d.patients);d.patients.forEach(x=>{if(!S.outbox.includes(x.id))S.outbox.push(x.id)});save();render();toast(`Restored ${n} patient record${n===1?"":"s"}`);sync()}
+
+/* first screen: a phone holding one real patient opens straight to them */
+const real=S.patients.filter(p=>!p.example);
+if(real.length===1&&S.patients.length===1){V={name:"patient",id:real[0].id};stack=[{name:"list"}];ui.tab="summary"}
+try{history.replaceState({d:0},"");if(stack.length)history.pushState({d:1},"")}catch(e){}
+render();sync();
+if("serviceWorker" in navigator&&location.protocol==="https:"&&!/claude\.ai|claudeusercontent/.test(location.hostname)){navigator.serviceWorker.register("sw.js").catch(()=>{})}
+})();
+</script>
+
+</body>
+</html>
